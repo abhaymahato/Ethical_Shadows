@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pie Chart Calculator</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      padding: 40px;
+      background: #f4f4f4;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .inputs {
+      margin-bottom: 30px;
+    }
+
+    .input-row {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .input-row input[type="text"],
+    .input-row input[type="number"],
+    .input-row input[type="color"] {
+      padding: 5px;
+      font-size: 14px;
+    }
+
+    .input-row button {
+      padding: 4px 8px;
+      background: #e74c3c;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    #addBtn {
+      margin-top: 10px;
+      padding: 8px 16px;
+      font-size: 16px;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .pie-chart {
+      width: 300px;
+      height: 300px;
+      border-radius: 50%;
+      margin: 30px auto;
+      background-image: conic-gradient(#ddd 0% 100%);
+      position: relative;
+      box-shadow: 0 0 8px rgba(0,0,0,0.2);
+    }
+
+    .total-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .legend {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+    }
+
+    .legend-color {
+      width: 14px;
+      height: 14px;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Pie Chart Calculator</h1>
+
+    <div class="inputs" id="inputContainer"></div>
+    <button id="addBtn">Add Category</button>
+
+    <div class="pie-chart" id="pieChart">
+      <div class="total-center" id="totalAmount">0</div>
+    </div>
+
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <script>
+    const inputContainer = document.getElementById('inputContainer');
+    const pieChart = document.getElementById('pieChart');
+    const totalAmount = document.getElementById('totalAmount');
+    const legend = document.getElementById('legend');
+    const addBtn = document.getElementById('addBtn');
+
+    function createInput(label = '', value = '', color = '#'+Math.floor(Math.random()*16777215).toString(16)) {
+      const row = document.createElement('div');
+      row.className = 'input-row';
+
+      row.innerHTML = `
+        <input type="text" placeholder="Label" value="${label}">
+        <input type="number" placeholder="Value" value="${value}">
+        <input type="color" value="${color}">
+        <button onclick="removeInput(this)">✕</button>
+      `;
+
+      inputContainer.appendChild(row);
+      updateChart();
+      row.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', updateChart);
+      });
+    }
+
+    function removeInput(button) {
+      button.parentElement.remove();
+      updateChart();
+    }
+
+    function updateChart() {
+      const rows = document.querySelectorAll('.input-row');
+      const data = [];
+      let total = 0;
+
+      rows.forEach(row => {
+        const label = row.children[0].value || 'Unnamed';
+        const value = parseFloat(row.children[1].value) || 0;
+        const color = row.children[2].value;
+
+        if (value > 0) {
+          data.push({ label, value, color });
+          total += value;
+        }
+      });
+
+      let current = 0;
+      const segments = data.map(item => {
+        const start = current;
+        const percent = (item.value / total) * 100;
+        current += percent;
+        return `${item.color} ${start}% ${current}%`;
+      });
+
+      pieChart.style.backgroundImage = `conic-gradient(${segments.join(',')})`;
+      totalAmount.textContent = total;
+
+      // Update legend
+      legend.innerHTML = '';
+      data.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'legend-item';
+        div.innerHTML = `<span class="legend-color" style="background:${item.color}"></span>${item.label} (${((item.value / total) * 100).toFixed(1)}%)`;
+        legend.appendChild(div);
+      });
+    }
+
+    // Initial categories
+    createInput('A', 30);
+    createInput('B', 50);
+    createInput('C', 20);
+
+    addBtn.addEventListener('click', () => createInput());
+  </script>
+
+</body>
+</html>

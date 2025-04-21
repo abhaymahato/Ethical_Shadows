@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SaveSmart: Budget Planner</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h3 {
+            text-align: center;
+            color: #333;
+        }
+        .input-group {
+            margin: 20px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="number"], input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .category-input {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .category-input input {
+            width: 45%;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: #28a745;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        #error {
+            color: red;
+            text-align: center;
+            display: none;
+        }
+        #result {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #suggestions {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e7f3ff;
+            border-radius: 8px;
+        }
+        #suggestions ul {
+            text-align: left;
+            list-style-type: disc;
+            padding-left: 20px;
+        }
+        canvas {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SaveSmart: Plan Your Budget</h1>
+        <div class="input-group">
+            <label for="salary">Monthly Salary ($):</label>
+            <input type="number" id="salary" placeholder="Enter your monthly salary" required>
+            
+            <label for="itemName">Item You Want to Purchase:</label>
+            <input type="text" id="itemName" placeholder="e.g., New Laptop" required>
+            
+            <label for="itemCost">Cost of the Item ($):</label>
+            <input type="number" id="itemCost" placeholder="Enter the cost of the item" required>
+        </div>
+        
+        <div class="input-group">
+            <h3>Allocate Your Expenses (%)</h3>
+            <div class="category-input">
+                <div>
+                    <label for="necessities">Necessities (Rent, Bills, etc.):</label>
+                    <input type="number" id="necessities" placeholder="e.g., 50" min="0" max="100">
+                </div>
+                <div>
+                    <label for="savings">Savings:</label>
+                    <input type="number" id="savings" placeholder="e.g., 20" min="0" max="100">
+                </div>
+            </div>
+            <div class="category-input">
+                <div>
+                    <label for="leisure">Leisure (Entertainment, Dining, etc.):</label>
+                    <input type="number" id="leisure" placeholder="e.g., 20" min="0" max="100">
+                </div>
+                <div>
+                    <label for="others">Others (Miscellaneous):</label>
+                    <input type="number" id="others" placeholder="e.g., 10" min="0" max="100">
+                </div>
+            </div>
+        </div>
+        
+        <button onclick="calculateBudget()">Calculate Budget</button>
+        <p id="error"></p>
+        <div id="result"></div>
+        <div id="suggestions"></div>
+        <canvas id="budgetChart"></canvas>
+    </div>
+
+    <script>
+        let chart;
+
+        function generateSuggestions(savings, leisure, others, savingsAmount, monthsToGoal, itemName, itemCost) {
+            const suggestions = [];
+            
+            // Suggestion 1: Increase Savings Rate
+            if (savings < 30 && (leisure > 10 || others > 10)) {
+                const reducible = Math.min(leisure, others);
+                const potentialIncrease = Math.min(reducible, 10); // Suggest reducing up to 10%
+                const newSavingsAmount = savingsAmount + (potentialIncrease / 100) * parseFloat(document.getElementById('salary').value);
+                const newMonthsToGoal = itemCost / newSavingsAmount;
+                suggestions.push(
+                    `Reduce spending on ${leisure > others ? 'Leisure' : 'Others'} by ${potentialIncrease}% and add it to Savings. ` +
+                    `This could increase your monthly savings to $${newSavingsAmount.toFixed(2)}, ` +
+                    reducing the time to buy your ${itemName} to ${newMonthsToGoal.toFixed(1)} months.
+                );
+            }
+
+            // Suggestion 2: Earn Extra Income
+            if (monthsToGoal > 12) { // If goal takes more than a year
+                const extraIncome = savingsAmount * 0.5; // Assume 50% of current savings as extra income
+                const newSavingsAmount = savingsAmount + extraIncome;
+                const newMonthsToGoal = itemCost / newSavingsAmount;
+                suggestions.push(
+                    `Consider a side hustle (e.g., freelancing, part-time work) to earn an extra $${extraIncome.toFixed(2)} per month. ` +
+                    `This could boost your savings to $${newSavingsAmount.toFixed(2)}, ` +
+                    allowing you to buy your ${itemName} in ${newMonthsToGoal.toFixed(1)} months.
+                );
+            }
+
+            // Suggestion 3: Reduce Item Cost
+            if (itemCost > 500) { // Arbitrary threshold for items where discounts are likely
+                const discountedCost = itemCost * 0.8; // Assume 20% discount
+                const newMonthsToGoal = discountedCost / savingsAmount;
+                suggestions.push(
+                    `Look for discounts, sales, or a used/refurbished ${itemName} to reduce its cost to ~$${discountedCost.toFixed(2)}. ` +
+                    This could let you achieve your goal in ${newMonthsToGoal.toFixed(1)} months.
+                );
+            }
+
+            // Suggestion 4: Optimize Savings
+            if (savingsAmount > 100) { // If saving a significant amount
+                suggestions.push(
+                    `Place your savings in a high-yield savings account (e.g., 4-5% annual interest) instead of a regular account. ` +
+                    This could slightly accelerate your savings growth over time.
+                );
+            }
+
+            // Default suggestion if none of the above apply
+            if (suggestions.length === 0) {
+                suggestions.push(
+                    Your current plan is solid! To speed up, explore small ways to cut non-essential expenses or earn extra income.
+                );
+            }
+
+            return suggestions;
+        }
+
+        function calculateBudget() {
+            // Get input values
+            const salary = parseFloat(document.getElementById('salary').value);
+            const itemName = document.getElementById('itemName').value;
+            const itemCost = parseFloat(document.getElementById('itemCost').value);
+            const necessities = parseFloat(document.getElementById('necessities').value) || 0;
+            const savings = parseFloat(document.getElementById('savings').value) || 0;
+            const leisure = parseFloat(document.getElementById('leisure').value) || 0;
+            const others = parseFloat(document.getElementById('others').value) || 0;
+
+            // Validate inputs
+            const errorElement = document.getElementById('error');
+            if (!salary || salary <= 0) {
+                errorElement.textContent = 'Please enter a valid monthly salary.';
+                errorElement.style.display = 'block';
+                return;
+            }
+            if (!itemName || !itemCost || itemCost <= 0) {
+                errorElement.textContent = 'Please enter a valid item name and cost.';
+                errorElement.style.display = 'block';
+                return;
+            }
+            const totalPercentage = necessities + savings + leisure + others;
+            if (totalPercentage !== 100) {
+                errorElement.textContent = 'The total percentage must equal 100%. Current total: ' + totalPercentage + '%.';
+                errorElement.style.display = 'block';
+                return;
+            }
+
+            errorElement.style.display = 'none';
+
+            // Calculate amounts
+            const necessitiesAmount = (necessities / 100) * salary;
+            const savingsAmount = (savings / 100) * salary;
+            const leisureAmount = (leisure / 100) * salary;
+            const othersAmount = (others / 100) * salary;
+
+            // Calculate time to achieve goal
+            const monthsToGoal = itemCost / savingsAmount;
+            const yearsToGoal = monthsToGoal / 12;
+
+            // Generate suggestions
+            const suggestions = generateSuggestions(savings, leisure, others, savingsAmount, monthsToGoal, itemName, itemCost);
+
+            // Display result
+            const resultElement = document.getElementById('result');
+            resultElement.innerHTML = `
+                <h3>Your Budget Breakdown</h3>
+                <p>Necessities: $${necessitiesAmount.toFixed(2)} (${necessities}%)</p>
+                <p>Savings: $${savingsAmount.toFixed(2)} (${savings}%)</p>
+                <p>Leisure: $${leisureAmount.toFixed(2)} (${leisure}%)</p>
+                <p>Others: $${othersAmount.toFixed(2)} (${others}%)</p>
+                <h3>Savings Goal: ${itemName}</h3>
+                <p>Cost: $${itemCost.toFixed(2)}</p>
+                <p>Monthly Savings: $${savingsAmount.toFixed(2)}</p>
+                <p>Time to Achieve: ${monthsToGoal.toFixed(1)} months (~${yearsToGoal.toFixed(1)} years)</p>
+            `;
+
+            // Display suggestions
+            const suggestionsElement = document.getElementById('suggestions');
+            suggestionsElement.innerHTML = `
+                <h3>Ways to Achieve Your Goal Faster</h3>
+                <ul>
+                    ${suggestions.map(s => <li>${s}</li>).join('')}
+                </ul>
+            `;
+
+            // Create or update bar chart
+            const ctx = document.getElementById('budgetChart').getContext('2d');
+            if (chart) {
+                chart.destroy();
+            }
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Necessities', 'Savings', 'Leisure', 'Others'],
+                    datasets: [{
+                        label: 'Budget Allocation ($)',
+                        data: [necessitiesAmount, savingsAmount, leisureAmount, othersAmount],
+                        backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0'],
+                        borderColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Amount ($)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
